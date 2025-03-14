@@ -9,7 +9,7 @@ Set to compiler ```version 5```
 **CPU DLL:**
 
 ```
-DARMSTL.DLL
+SARMCM3.DLL
 ```
 
 **Parameter:**
