@@ -1,6 +1,6 @@
 #include "stm32f10x.h"
 
-#include "gpio.h"
+#include "../include/gpio.h"
 
 void initGpioX(GPIO_TypeDef* gpioX, uint8_t bitIndex, uint8_t mode) {
     // Check pin number
