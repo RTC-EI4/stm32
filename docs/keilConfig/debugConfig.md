@@ -21,7 +21,7 @@ SARMCM3.DLL
 **Dialog DLL:**
 
 ```
-DARMSTL.DLL
+DARMSTM.DLL
 ```
 
 **Parameter:**
