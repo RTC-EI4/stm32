@@ -4,8 +4,16 @@ List of path to add to Keil C/C++ import list
 
 ## Imports
 
-src/FreeRTOS <br />
-src/FreeRTOS/include
+### FreeRTOS
 
-src/tasks/include <br />
+```path
+src/FreeRTOS
+src/FreeRTOS/include
+```
+
+### Main
+
+```path
+src/tasks/include
 src/utils/include
+```

@@ -8,25 +8,25 @@ Set to compiler ```version 5```
 
 **CPU DLL:**
 
-```
+```text
 SARMCM3.DLL
 ```
 
 **Parameter:**
 
-```
+```text
 -REMAP
 ```
 
 **Dialog DLL:**
 
-```
+```text
 DARMSTM.DLL
 ```
 
 **Parameter:**
 
-```
+```text
 -pSTM32F103RB
 ```
 
@@ -36,7 +36,7 @@ Debugger name: ```ST-link Debugger```
 
 **Driver DLL:**
 
-```
+```text
 SARMCM3.DLL
 ```
 
@@ -46,13 +46,13 @@ None
 
 **Dialog DLL:**
 
-```
+```text
 TARMSTL.DLL
 ```
 
 **Parameter:**
 
-```
+```text
 -pSTM32F103RB
 ```
 
