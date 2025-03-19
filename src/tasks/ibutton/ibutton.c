@@ -3,10 +3,9 @@
 #include "task.h"
 #include "queue.h"
 #include "gpio.h"
+#include "ibutton.h"
 
 
-// communication par FIFO
-#define TAILLE_FIFO 32
 uint8_t fifo_env[TAILLE_FIFO];
 uint8_t pw_fifo = 0;
 uint8_t pr_fifo = 0;
@@ -16,27 +15,10 @@ uint16_t place_libre = TAILLE_FIFO;
 unsigned char identifiant[8];
 volatile unsigned char motif_onewire_fini = 0;
 volatile unsigned char etat_onewire = 0;
-#define BIT_INDIQUANT_ENVOI_POSSIBLE (1 << 7)
-#define TIM1CLK_1US 1
+
 
 TaskHandle_t xOneWireTaskHandle = NULL;
 
-// machine a etat pour la communication 1-wire
-typedef enum {
-    OW_IDLE,
-    OW_RESET,
-    OW_SEND_ROM_CMD,
-    OW_READ_ROM,
-    OW_COMPLETE
-} OneWireState_t;
-
-
-typedef struct {
-    OneWireState_t state;
-    uint8_t byteIndex;
-    uint8_t bitIndex;
-    uint8_t currentByte;
-} OneWireOperation_t;
 
 volatile OneWireOperation_t owOperation = {OW_IDLE, 0, 0, 0};
 
@@ -52,18 +34,17 @@ void tentative_depile_fifo(void) {
 
 
 
-void init_button(){
-    // initGpioX(GPIO?, ?, 0x04); //TODO a remplacer pas les bons arguments
-}
+// void init_button(){
+//     initGpioX(GPIO?, ?, 0x04); //TODO a remplacer pas les bons arguments
+// }
 
 
 // USART2 initialization
 void init_USART2(void) {
     RCC->APB1ENR |= (1 << 17);
-    initGpioX(GPIOA, 2, 0x09);
-    initGpioX(GPIOA, 3, 0x08);
-    // init_gpioA(2, 9);
-    // init_gpioA(3, 8);
+    initGpioX(GPIOA, 2, 0x09); //TODO change UART pins
+    initGpioX(GPIOA, 3, 0x08); //TODO change UART pins
+
     USART2->BRR = 36000000 / 9600;
     USART2->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
     USART2->CR2 = 0x0000;
@@ -154,11 +135,11 @@ void Timer1_Start(uint16_t pulse_duration, uint16_t ch2_duration, uint16_t ch3_d
         TIM1->DIER &= ~TIM_DIER_CC3IE; // Desactiver IT CH3 si ch3_duration > ch2_duration
     }
 
-    // Reinitialiser le compteur
-    TIM1->CNT = 0;
-	GPIOA->BSRR = 0x05<< (9) ;//montee PA9 et PA11
-    // Lancer le timer
-    TIM1->CR1 |= TIM_CR1_CEN;
+		// Reinitialiser le compteur
+		TIM1->CNT = 0;
+		GPIOA->BSRR = 0x05<< (9) ;//montee PA9 et PA11
+		// Lancer le timer
+		TIM1->CR1 |= TIM_CR1_CEN;
 }
 
 
@@ -210,5 +191,25 @@ void Timer1_Init(void) {
 }
 
 
+void ONEWIRE_RESET(void) {
+    motif_onewire_fini = 0;
+    Timer1_Start(500 * TIM1CLK_1US, 1000 * TIM1CLK_1US, 565 * TIM1CLK_1US);
+    // la tache va etre notifier par l'interruption
+}
 
+void ONEWIRE_WRITE_BIT(unsigned char x) {
+    motif_onewire_fini = 0;
+    if (x) {
+        Timer1_Start(8 * TIM1CLK_1US, 64 * TIM1CLK_1US, 100 * TIM1CLK_1US);
+    } else {
+        Timer1_Start(60 * TIM1CLK_1US, 64 * TIM1CLK_1US, 100 * TIM1CLK_1US);
+    }
+    // la tache va etre notifier par l'interruption
+}
+
+void ONEWIRE_READ_BIT(void) {
+    motif_onewire_fini = 0;
+    Timer1_Start(8 * TIM1CLK_1US, 64 * TIM1CLK_1US, 13 * TIM1CLK_1US);
+    // la tache va etre notifier par l'interruption
+}
 
