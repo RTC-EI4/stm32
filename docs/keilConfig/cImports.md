@@ -9,6 +9,7 @@ List of path to add to Keil C/C++ import list
 ```path
 src/FreeRTOS
 src/FreeRTOS/include
+src/FreeRTOS/arm3Port
 ```
 
 ### Main
