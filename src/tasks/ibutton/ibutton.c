@@ -1,7 +1,6 @@
 #include "stm32f10x.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "queue.h"
 #include "gpio.h"
 #include "ibutton.h"
 
@@ -17,10 +16,11 @@ volatile unsigned char motif_onewire_fini = 0;
 volatile unsigned char etat_onewire = 0;
 
 
-TaskHandle_t xOneWireTaskHandle = NULL;
+static TaskHandle_t xOneWireTaskHandle = NULL;
+volatile OneWireOperation_t owOperation = {OW_IDLE, 0};
 
 
-volatile OneWireOperation_t owOperation = {OW_IDLE, 0, 0, 0};
+
 
 void tentative_depile_fifo(void) {
     if ((USART2->SR & (BIT_INDIQUANT_ENVOI_POSSIBLE))) {
@@ -32,11 +32,6 @@ void tentative_depile_fifo(void) {
     }
 }
 
-
-
-// void init_button(){
-//     initGpioX(GPIO?, ?, 0x04); //TODO a remplacer pas les bons arguments
-// }
 
 
 // USART2 initialization
@@ -94,6 +89,7 @@ void fabrique_trame(void) {
 
 
 void TIM1_CC_IRQHandler(void) { 
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     if (TIM1->SR & TIM_SR_CC2IF) {
         TIM1->SR &= ~TIM_SR_CC2IF;  // Effacer le flag CH2
         TIM1->CR1 &= ~TIM_CR1_CEN; // Arreter le timer
@@ -103,7 +99,7 @@ void TIM1_CC_IRQHandler(void) {
 
         //ici on peut faire une notification car on a fini de lire le motif
         if (xOneWireTaskHandle != NULL) {
-            vTaskNotifyGiveFromISR(xOneWireTaskHandle, NULL); //TODO : is the second parameter xHigherPriorityTaskWoken necessary?
+            vTaskNotifyGiveFromISR(xOneWireTaskHandle, &xHigherPriorityTaskWoken);
         }
     }
     // Interruption CH3 (independante)
@@ -117,6 +113,8 @@ void TIM1_CC_IRQHandler(void) {
             etat_onewire=0;
         }	
     }
+        // Forcer un changement de contexte si nécessaire
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 
@@ -192,24 +190,133 @@ void Timer1_Init(void) {
 
 
 void ONEWIRE_RESET(void) {
-    motif_onewire_fini = 0;
+    motif_onewire_fini=0;
     Timer1_Start(500 * TIM1CLK_1US, 1000 * TIM1CLK_1US, 565 * TIM1CLK_1US);
-    // la tache va etre notifier par l'interruption
 }
 
 void ONEWIRE_WRITE_BIT(unsigned char x) {
-    motif_onewire_fini = 0;
+    motif_onewire_fini=0;
     if (x) {
         Timer1_Start(8 * TIM1CLK_1US, 64 * TIM1CLK_1US, 100 * TIM1CLK_1US);
     } else {
         Timer1_Start(60 * TIM1CLK_1US, 64 * TIM1CLK_1US, 100 * TIM1CLK_1US);
     }
-    // la tache va etre notifier par l'interruption
 }
 
-void ONEWIRE_READ_BIT(void) {
-    motif_onewire_fini = 0;
-    Timer1_Start(8 * TIM1CLK_1US, 64 * TIM1CLK_1US, 13 * TIM1CLK_1US);
-    // la tache va etre notifier par l'interruption
+static void ONEWIRE_WRITE_BYTE(uint8_t data) {
+    uint8_t i;
+    for (i = 0; i < 8; i++) {
+        ONEWIRE_WRITE_BIT((data >> i) & 0x01);
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // Wait for bit operation to complete
+    }
 }
+
+
+void ONEWIRE_READ_BIT(void) {
+    motif_onewire_fini=0;
+    Timer1_Start(8 * TIM1CLK_1US, 64 * TIM1CLK_1US, 13 * TIM1CLK_1US);
+}
+
+static uint8_t ONEWIRE_READ_BYTE(void) {
+    uint8_t i, result = 0;
+    for (i = 0; i < 8; i++) {
+        ONEWIRE_READ_BIT();
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // Wait for bit operation to complete
+        result |= (etat_onewire << i);
+    }
+    return result;
+}
+
+
+static void processOneWireStateMachine(void) {
+    static const uint8_t READ_ROM_CMD = 0x33;
+    
+    switch (owOperation.state) {
+        case OW_IDLE:
+            // Nothing to do in idle state
+            break;
+            
+        case OW_RESET:
+            ONEWIRE_RESET();
+            ulTaskNotifyTake(pdTRUE, portMAX_DELAY); 
+ 
+            if (etat_onewire == 0) {
+                owOperation.state = OW_SEND_ROM_CMD;
+                owOperation.currentByte = 0;
+            } else {
+                //go back to idle
+                owOperation.state = OW_IDLE;
+            }
+            break;
+            
+        case OW_SEND_ROM_CMD:
+            ONEWIRE_WRITE_BYTE(READ_ROM_CMD);
+
+            owOperation.state = OW_READ_ROM;
+            owOperation.currentByte = 0;
+            break;
+            
+        case OW_READ_ROM:
+            //Read 8 bytes (64-bit ROM code)
+            identifiant[owOperation.currentByte] = ONEWIRE_READ_BYTE();
+            
+            owOperation.currentByte++;
+            if (owOperation.currentByte >= 8) {
+                //All bytes read, operation complete
+                owOperation.state = OW_COMPLETE;
+            }
+            break;
+            
+        case OW_COMPLETE:
+            fabrique_trame();
+            owOperation.state = OW_IDLE;
+            break;
+            
+        default:
+            owOperation.state = OW_IDLE;
+            break;
+    }
+}
+
+void vOneWireTask(void *pvParameters) {
+    TickType_t xLastWakeTime;
+    const TickType_t xPeriod = pdMS_TO_TICKS(200); // 5 times per second
+    // had to change INCLUDE_xTaskGetCurrentTaskHandle to 1 in FreeRTOS.h
+    xOneWireTaskHandle = xTaskGetCurrentTaskHandle();
+    xLastWakeTime = xTaskGetTickCount();
+    
+    while (1) {
+        if (owOperation.state == OW_IDLE) {
+            ONEWIRE_RESET();
+            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+            if (etat_onewire == 0) {
+                owOperation.state = OW_RESET;
+                
+                while (owOperation.state != OW_IDLE && owOperation.state != OW_COMPLETE) {
+                    processOneWireStateMachine();
+                }
+                
+                if (owOperation.state == OW_COMPLETE) {
+                    processOneWireStateMachine();
+                }
+            }
+        }
+
+        vTaskDelayUntil(&xLastWakeTime, xPeriod);
+    
+    }
+}
+
+void vUartTask(void *pvParameters) {
+    while (1) {
+        // Process FIFO
+        while (place_libre < TAILLE_FIFO) {
+            tentative_depile_fifo();
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+
 

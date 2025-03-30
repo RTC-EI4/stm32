@@ -24,13 +24,13 @@ typedef enum {
 
 typedef struct {
     OneWireState_t state;
-    uint8_t byteIndex;
-    uint8_t bitIndex;
     uint8_t currentByte;
 } OneWireOperation_t;
 
+extern TaskHandle_t xOneWireTaskHandle;
+
 void tentative_depile_fifo(void);
-// void init_button();
+void init_button(void);
 void init_USART2(void);
 unsigned char quartet2hex(unsigned char in);
 void fabrique_trame(void);
@@ -40,3 +40,7 @@ void Timer1_Init(void) ;
 void ONEWIRE_RESET(void);
 void ONEWIRE_WRITE_BIT(unsigned char x);
 void ONEWIRE_READ_BIT(void);
+void processOneWireStateMachine(void) ;
+void vOneWireTask(void *pvParameters) ;
+void vUartTask(void *pvParameters);
+void simulate_iButton(void);
