@@ -33,7 +33,6 @@ void tentative_depile_fifo(void) {
 }
 
 
-
 // USART2 initialization
 void init_USART2(void) {
     RCC->APB1ENR |= (1 << 17);
@@ -99,8 +98,8 @@ void TIM1_CC_IRQHandler(void) {
 
         //ici on peut faire une notification car on a fini de lire le motif
         if (xOneWireTaskHandle != NULL) {
-            vTaskNotifyGiveFromISR(xOneWireTaskHandle, &xHigherPriorityTaskWoken);
-        }
+            xTaskNotifyFromISR(xOneWireTaskHandle, 0, eNoAction, &xHigherPriorityTaskWoken);
+        }        
     }
     // Interruption CH3 (independante)
     if (TIM1->SR & TIM_SR_CC3IF) {
@@ -251,7 +250,6 @@ static void processOneWireStateMachine(void) {
             
         case OW_SEND_ROM_CMD:
             ONEWIRE_WRITE_BYTE(READ_ROM_CMD);
-
             owOperation.state = OW_READ_ROM;
             owOperation.currentByte = 0;
             break;

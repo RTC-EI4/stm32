@@ -7,7 +7,6 @@
 int main(void) {
   TaskHandle_t xOneWireTaskHandle = NULL;
     // Initialize hardware
-    init_button();
     Timer1_Init();
     init_USART2();
 
