@@ -1,6 +1,8 @@
 #ifndef NEOPIXEL_H
 #define NEOPIXEL_H
 
+#include <stdint.h>
+
 typedef enum NeopixelColor_ {
     NEOPIXEL_COLOR_RED,
     NEOPIXEL_COLOR_GREEN,
@@ -9,10 +11,13 @@ typedef enum NeopixelColor_ {
     NEOPIXEL_COLOR_BLACK,
 } NeopixelColor;
 
-void initNeopixelDriver(void);
+#define NEOPIXEL_TASK_STACK_SIZE 128
+
+void task_Neopixel(void* params_p);
+
 int8_t setNeopixelData(uint8_t* colors, uint8_t count);
 
-void initTimer2_neo(void);
+static void initTimer2_neo(void);
 static void initDMA1_neo(void);
 
 #endif

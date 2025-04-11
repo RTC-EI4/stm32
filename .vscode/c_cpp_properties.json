@@ -1,0 +1,12 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/src/libs",
+                "${workspaceFolder}/src/**"
+            ]
+        }
+    ],
+    "version": 4
+}

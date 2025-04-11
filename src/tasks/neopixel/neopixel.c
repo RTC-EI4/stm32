@@ -1,7 +1,10 @@
-#include "stm32f10x.h"
-
 #include <stdlib.h>
 #include <stdint.h>
+
+#include "stm32f10x.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
 
 #include "gpio.h"
 
@@ -9,58 +12,113 @@
 
 /*
 
-    Public functions
+    Neopixel task
 
 */
 
-void initNeopixelDriver() {
-    initTimer2_neo();
-    initDMA1_neo();
+char seq = 0;
+uint8_t colorsNeo[24] = {NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE};
+
+void task_Neopixel(void* params_p) {
+    // Init resources
+    initTimer2_neo(); // Init the timer 2 for the neopixel
+    initDMA1_neo(); // Init the DMA 1 for the neopixel
+
+    // Set the pin to output push-pull mode with 50MHz speed
+    initGpioX(GPIOB, 10, GPIO_MODE_OUTPUT_PP_50MHz); // Set the pin to output push-pull mode with 50MHz speed
+    GPIOB->BSRR = GPIO_BSRR_BS10; // Set the pin to high
+    vTaskDelay(10); // Wait to let the LED initialize
+
+    // Task main loop
+    volatile uint8_t ledIndex = 1;
+    while(1) {
+        /*
+        
+            Reset sequence
+        
+        */
+
+        // Set the pin to output push-pull mode with 50MHz speed
+        initGpioX(GPIOB, 10, GPIO_MODE_OUTPUT_PP_50MHz); // Set the pin to output push-pull mode with 50MHz speed
+        GPIOB->BSRR = GPIO_BSRR_BR10; // Set the pin to low
+
+        vTaskDelay(1); // Wait 100us
+
+        /*
+
+            Program the neopixel
+
+        */
+
+        // Calc and send the neopixel data
+        setNeopixelData(colorsNeo, ledIndex++);
+
+        // Wait
+        vTaskDelay(1000);
+
+        // Loop the array
+        if(ledIndex > 24) {
+            // Fill colorsNeo with all black
+            if(seq++ == 0) for(uint8_t i = 0; i < 24; i++) colorsNeo[i] = NEOPIXEL_COLOR_BLACK;
+            else { // Fill colorsNeo as before
+                for(uint8_t i = 0; i < 24; i++) colorsNeo[i] = NEOPIXEL_COLOR_RED + (i % 5);
+                seq = 0;
+            }
+
+            ledIndex = 1; // Reset the index
+        }
+    }
 }
 
+/*
+
+    Functions
+
+*/
+
 int8_t setNeopixelData(uint8_t* colors, uint8_t count) {
-    // Alloc the memory for the neopixel data
-    // uint8_t* neopixelData = (uint8_t*) malloc((count * 3 * 8) * sizeof(uint8_t)); // GRB format, 8 bits per color, 3 colors per pixel
-    // if (neopixelData == NULL) {
-    //     // Handle memory allocation error
-    //     return -1;
-    // }
-
-    uint8_t neopixelData[600]; // TODO prefer a malloc, but first fid why cannont malloc more than 500 bytes
-
+    // Malloc the neopixel data array
+    uint8_t* neopixelData = (uint8_t*) malloc((count * 24 + 1) * sizeof(uint8_t)); // Allocate memory for the neopixel data (24 bits per pixel)
+    if(neopixelData == NULL) return -1; // Error, not enough memory
+    
     // Fill the neopixel data with the colors
     for(uint8_t i = 0; i < count; i++) {
         uint32_t color = 0;
 
         // Convert the color to the neopixel format (GRB)
-        if(colors[i] == NEOPIXEL_COLOR_RED) color = 0x001100; // Red
-        else if(colors[i] == NEOPIXEL_COLOR_GREEN) color = 0x110000; // Green
-        else if(colors[i] == NEOPIXEL_COLOR_BLUE) color = 0x000011; // Blue
-        else if(colors[i] == NEOPIXEL_COLOR_WHITE) color = 0x111111; // White
+        if(colors[i] == NEOPIXEL_COLOR_RED) color = 0x000500; // Red
+        else if(colors[i] == NEOPIXEL_COLOR_GREEN) color = 0x050000; // Green
+        else if(colors[i] == NEOPIXEL_COLOR_BLUE) color = 0x000005; // Blue
+        else if(colors[i] == NEOPIXEL_COLOR_WHITE) color = 0x050505; // White
         else if(colors[i] == NEOPIXEL_COLOR_BLACK) color = 0x000000; // Black
         else color = 0x000000; // Default to black
 
         // Fill the neopixel data with the signal duration for each bit
         for(uint8_t j = 0; j < 24; j++) {
-            if((color >> (23 - j)) & 0x01) { // If the bit is 1
-                neopixelData[i * 24 + j] = 8; // Set the duration to 0.8us
+            if((color >> (23 - j)) & 0x1) { // If the bit is 1
+                neopixelData[i * 24 + j] = 7; // Set the duration to 0.8us
             } else { // If the bit is 0
-                neopixelData[i * 24 + j] = 4; // Set the duration to 0.4us
+                neopixelData[i * 24 + j] = 3; // Set the duration to 0.4us
             }
         }
     }
 
+    // Set the last byte to 0 (not used)
+    neopixelData[count * 24] = 0; // Set the last byte to 0 (not used)
+
     // Set pin mode
     initGpioX(GPIOB, 10, GPIO_MODE_AF_PP_50MHz);
 
-    // Set the DMA memory address to the neopixel data
+    // Set the DMA memory address to the neopixel data and the number of data to transfer
     DMA1_Channel1->CMAR = (uint32_t) neopixelData; // Set the memory address to the neopixel data
-
-    // Set the number of data to transfer (5 bytes)
-    DMA1_Channel1->CNDTR = count * 24; // Set the number of data to transfer (24 bits per pixel)
+    DMA1_Channel1->CNDTR = count * 24 + 1; // Set the number of data to transfer (24 bits per pixel)
 
     // Enable the DMA channel
     DMA1_Channel1->CCR |= DMA_CCR1_EN; // Enable the channel
+
+    // Enable the timer
+    TIM2->EGR |= TIM_EGR_UG; // Generate an update event to preload the registers
+    TIM2->CR1 |= TIM_CR1_CEN; // Enable the counter
 
     return 1;
 }
@@ -72,7 +130,7 @@ int8_t setNeopixelData(uint8_t* colors, uint8_t count) {
 */
 
 // Init the timer 2 chanel 3 in PWM mode, it will be controled by DMA
-void initTimer2_neo() {
+static void initTimer2_neo(void) {
     // Init timer 2 clock
     RCC->APB1ENR |= RCC_APB1ENR_TIM2EN; // Enable the timer 2 clock
 
@@ -126,7 +184,7 @@ void initTimer2_neo() {
     TIM2->DIER = 0; // Reset the timer DMA enable register
     TIM2->DIER |= TIM_DIER_TDE; // Enable update event for DMA
     TIM2->DIER |= TIM_DIER_CC3DE; // Enable DMA request for chanel 3
-    TIM2->DIER |= TIM_DIER_TIE; // Enable update event for interrupt
+    TIM2->DIER |= TIM_DIER_TIE; // Enable event for interrupt
     TIM2->DIER |= TIM_DIER_CC3IE; // Enable interrupt for chanel 3
 
     /* SR (status register): (set by hardware) */
@@ -171,10 +229,10 @@ void initTimer2_neo() {
     TIM2->CCER |= TIM_CCER_CC3E; // Set the CC3E bit to 1 (enable output compare 3)
 
     /* PSC (prescaler) */
-    TIM2->PSC = 7; // Base clock id 72MHz, prescaler 7 ~= 10.2MHz or ~= 97.2ns period
+    TIM2->PSC = 6; // Base clock id 72MHz, prescaler (6 + 1) ~= 10.2MHz or ~= 97.2ns period
     
     /* ARR (auto reload register) */
-    TIM2->ARR = 12; // PWN cycle in us, 12 * 97.2ns = 1.166us ~= 1.2us
+    TIM2->ARR = 11; // PWN cycle in us, (11 + 1) * 97.2ns = 1.166us ~= 1.2us
 
     /* CCRx (capture/compare register x) : not used */
     TIM2->CCR1 = 0; // Reset the capture/compare register 1
@@ -191,14 +249,14 @@ void initTimer2_neo() {
     TIM2->DCR |= TIM_DCR_DBA_0 | TIM_DCR_DBA_1 | TIM_DCR_DBA_2 | TIM_DCR_DBA_3; // Set the DBA bits to 0b1111 (write to the CCR3 register)
 
     // Preload data into the shadow registers
-    TIM2->EGR |= TIM_EGR_UG; // Generate an update event to preload the registers
+    //TIM2->EGR |= TIM_EGR_UG; // Generate an update event to preload the registers
 
     // Enable counter
-    TIM2->CR1 |= TIM_CR1_CEN; // Enable the counter
+    // TIM2->CR1 |= TIM_CR1_CEN; // Enable the counter
 }
 
 // Init the DMA 1 to chanel 1 to transfer the data to the timer 2 chanel 3 and control the PWM ratio
-void initDMA1_neo() {
+static void initDMA1_neo(void) {
     // Init DMA 1 clock
     RCC->AHBENR |= RCC_AHBENR_DMA1EN; // Enable the DMA 1 clock
 
@@ -245,12 +303,6 @@ void initDMA1_neo() {
 */
 
 void DMA1_Channel1_IRQHandler() {
-    // Clear the transfer complete interrupt flag
-    DMA1->IFCR |= DMA_IFCR_CTCIF1; // Clear the transfer complete interrupt flag
-
-    // Disable the DMA channel
-    DMA1_Channel1->CCR &= ~DMA_CCR1_EN; // Disable the channel
-
     // Stop the PWM timer
     TIM2->CR1 &= ~TIM_CR1_CEN; // Disable the counter
 
@@ -258,6 +310,14 @@ void DMA1_Channel1_IRQHandler() {
     initGpioX(GPIOB, 10, GPIO_MODE_OUTPUT_PP_50MHz); // Set the pin to output push-pull mode with 50MHz speed
     GPIOB->BSRR = GPIO_BSRR_BS10; // Set the pin to high
 
-    // Free the neopixel data memory
-    free((void*) DMA1_Channel1->CMAR); // Free the neopixel data memory
+    // Disable the DMA channel
+    DMA1_Channel1->CCR &= ~DMA_CCR1_EN; // Disable the channel
+
+    // Free the neopixel data array
+    free((void*) DMA1_Channel1->CMAR); // Free the neopixel data array
+    DMA1_Channel1->CMAR = 0; // Set the memory address to 0 (not used)
+    DMA1_Channel1->CNDTR = 0; // Set the number of data to transfer to 0 (not used)
+
+    // Clear the transfer complete interrupt flag
+    DMA1->IFCR |= DMA_IFCR_CTCIF1; // Clear the transfer complete interrupt flag
 }

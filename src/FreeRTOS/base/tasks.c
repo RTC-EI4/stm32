@@ -2667,7 +2667,7 @@ BaseType_t xTaskIncrementTick( void )
 TCB_t * pxTCB;
 TickType_t xItemValue;
 BaseType_t xSwitchRequired = pdFALSE;
-	GPIOB->BSRR = 1<<(10);
+	// GPIOB->BSRR = 1<<(10);
 	/* Called by the portable layer each time a tick interrupt occurs.
 	Increments the tick then checks to see if the new tick value will cause any
 	tasks to be unblocked. */
@@ -2829,7 +2829,7 @@ BaseType_t xSwitchRequired = pdFALSE;
 		}
 	}
 	#endif /* configUSE_PREEMPTION */
-	GPIOB->BSRR = 1<<(10+16);
+	// GPIOB->BSRR = 1<<(10+16);
 	return xSwitchRequired;
 }
 /*-----------------------------------------------------------*/
@@ -2945,7 +2945,7 @@ BaseType_t xSwitchRequired = pdFALSE;
 /*-----------------------------------------------------------*/
 
 void vTaskSwitchContext( void )
-{	GPIOB->BSRR = 1<<(12);
+{	// GPIOB->BSRR = 1<<(12);
 	if( uxSchedulerSuspended != ( UBaseType_t ) pdFALSE )
 	{
 		/* The scheduler is currently suspended - do not allow a context
@@ -3014,7 +3014,7 @@ void vTaskSwitchContext( void )
 		}
 		#endif /* configUSE_NEWLIB_REENTRANT */
 	}
-	GPIOB->BSRR = 1<<(12+16);
+	// GPIOB->BSRR = 1<<(12+16);
 }
 /*-----------------------------------------------------------*/
 
@@ -3333,7 +3333,7 @@ void vTaskMissedYield( void )
  *
  */
 static portTASK_FUNCTION( prvIdleTask, pvParameters )
-{uint32_t commut_idle = 1<<11;
+{
 	/* Stop warnings. */
 	( void ) pvParameters;
 
@@ -3347,7 +3347,7 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 
 	for( ;; )
 	{
-		GPIOB->BSRR = commut_idle;commut_idle ^=0x00010001<<11; //permet d avoir un témoin de vie idle
+		// GPIOB->BSRR = commut_idle;commut_idle ^=0x00010001<<11; //permet d avoir un tï¿½moin de vie idle
 		/* See if any tasks have deleted themselves - if so then the idle task
 		is responsible for freeing the deleted task's TCB and stack. */
 		prvCheckTasksWaitingTermination();

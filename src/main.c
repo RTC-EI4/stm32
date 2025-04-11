@@ -1,19 +1,44 @@
+#include <stdint.h>
+#include <stdlib.h>
+
 #include "stm32f10x.h"
 
 #include "FreeRTOS.h"
+#include "task.h"
 
 #include "gpio.h"
 
 #include "neopixel.h"
+#include "buttons_task.h"
+
+/*
+
+    Create task
+
+*/
+
+TaskHandle_t handle_NeopixelTask;
+TaskHandle_t handle_ButtonTask;
+
+void createTasks() {
+    // Neopixel task
+    if (xTaskCreate(task_Neopixel, "Neopixel", NEOPIXEL_TASK_STACK_SIZE, (void *)1, tskIDLE_PRIORITY + 2, &handle_NeopixelTask) != pdPASS) {
+        // Error
+    }
+
+    // Buttons reading task
+    if (xTaskCreate(task_Buttons, "Buttons", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, &handle_ButtonTask) != pdPASS) {
+        // Handle task creation failure
+    }
+}
 
 int main() {
-    initNeopixelDriver();
+    // Create all tasks
+    createTasks();
 
-    // Program the LEDs
-    uint8_t colors[25] = {NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK};
-    setNeopixelData(colors, 25);
+    // Start all tasks
+    vTaskStartScheduler();
 
-	while(1) {
-        // Do nothing
-    }
+    // Error, should never reach here
+    while(1) {}
 }
