@@ -206,7 +206,7 @@ static void ONEWIRE_WRITE_BYTE(uint8_t data) {
     uint8_t i;
     for (i = 0; i < 8; i++) {
         ONEWIRE_WRITE_BIT((data >> i) & 0x01);
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // Wait for bit operation to complete
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY); 
     }
 }
 
@@ -220,7 +220,7 @@ static uint8_t ONEWIRE_READ_BYTE(void) {
     uint8_t i, result = 0;
     for (i = 0; i < 8; i++) {
         ONEWIRE_READ_BIT();
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // Wait for bit operation to complete
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         result |= (etat_onewire << i);
     }
     return result;
@@ -232,7 +232,6 @@ static void processOneWireStateMachine(void) {
     
     switch (owOperation.state) {
         case OW_IDLE:
-            // Nothing to do in idle state
             break;
             
         case OW_RESET:
