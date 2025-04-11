@@ -12,14 +12,23 @@
 
 /*
 
+    Global vars
+
+*/
+
+uint8_t colorsNeo[20] = {NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK};
+uint32_t notificationValue = 0;
+
+/*
+
     Neopixel task
 
 */
 
-char seq = 0;
-uint8_t colorsNeo[24] = {NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE, NEOPIXEL_COLOR_BLACK, NEOPIXEL_COLOR_RED, NEOPIXEL_COLOR_GREEN, NEOPIXEL_COLOR_BLUE, NEOPIXEL_COLOR_WHITE};
-
 void task_Neopixel(void* params_p) {
+    // Pre-fill the colorsNeo array with all black
+    for(uint8_t i = 0; i < 24; i++) colorsNeo[i] = NEOPIXEL_COLOR_GREEN;
+
     // Init resources
     initTimer2_neo(); // Init the timer 2 for the neopixel
     initDMA1_neo(); // Init the DMA 1 for the neopixel
@@ -27,10 +36,11 @@ void task_Neopixel(void* params_p) {
     // Set the pin to output push-pull mode with 50MHz speed
     initGpioX(GPIOB, 10, GPIO_MODE_OUTPUT_PP_50MHz); // Set the pin to output push-pull mode with 50MHz speed
     GPIOB->BSRR = GPIO_BSRR_BS10; // Set the pin to high
-    vTaskDelay(10); // Wait to let the LED initialize
+
+    // Wait to let the LED initialize
+    vTaskDelay(10);
 
     // Task main loop
-    volatile uint8_t ledIndex = 1;
     while(1) {
         /*
         
@@ -51,22 +61,30 @@ void task_Neopixel(void* params_p) {
         */
 
         // Calc and send the neopixel data
-        setNeopixelData(colorsNeo, ledIndex++);
+        setNeopixelData(colorsNeo, 20); // Set the neopixel data with the colorsNeo array and 24 pixels);
 
-        // Wait
-        vTaskDelay(1000);
+        /*
+        
+            Wait for notification
+        
+        */
 
-        // Loop the array
-        if(ledIndex > 24) {
-            // Fill colorsNeo with all black
-            if(seq++ == 0) for(uint8_t i = 0; i < 24; i++) colorsNeo[i] = NEOPIXEL_COLOR_BLACK;
-            else { // Fill colorsNeo as before
-                for(uint8_t i = 0; i < 24; i++) colorsNeo[i] = NEOPIXEL_COLOR_RED + (i % 5);
-                seq = 0;
-            }
+        xTaskNotifyWait(
+            0x0, /* Don't clear any notification bits on entry. */
+            0xffffffff, /* Reset the notification value to 0 on exit. */
+            &notificationValue, /* Notified value pass out in ulNotifiedValue. */
+            portMAX_DELAY /* Block indefinitely. */
+        );
 
-            ledIndex = 1; // Reset the index
-        }
+        for(uint8_t i = 0; i < 24; i++) colorsNeo[i] = NEOPIXEL_COLOR_BLACK; // Set the color to black
+
+        // // Read the MSB of the notification value, if 1 use set color mode, if 0 use clear color mode
+        // // Read the LSB of the notification value, it uses the NeopixelColor enum as value, store it in the colorsNeo array
+        // if(notificationValue & 0x80000000) { // If the MSB is 1, set color mode
+        //     for(uint8_t i = 0; i < 24; i++) colorsNeo[i] = notificationValue & 1; // Set the color in the array
+        // } else { // If the MSB is 0, clear color mode
+        //     for(uint8_t i = 0; i < 24; i++) colorsNeo[i] = NEOPIXEL_COLOR_BLACK; // Set the color to black
+        // }
     }
 }
 

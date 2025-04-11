@@ -27,7 +27,7 @@ void createTasks() {
     }
 
     // Buttons reading task
-    if (xTaskCreate(task_Buttons, "Buttons", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, &handle_ButtonTask) != pdPASS) {
+    if (xTaskCreate(task_Buttons, "Buttons", NEOPIXEL_TASK_STACK_SIZE, (void *)1, tskIDLE_PRIORITY + 2, &handle_ButtonTask) != pdPASS) {
         // Handle task creation failure
     }
 }
