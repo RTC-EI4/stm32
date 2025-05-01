@@ -8,3 +8,6 @@ EventRecorderStub.scvd
 stm32.uvprojx
 stm32.uvoptx
 stm32.uvguix.*
+
+#vscode files
+.vscode/

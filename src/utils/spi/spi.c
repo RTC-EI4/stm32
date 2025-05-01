@@ -8,9 +8,10 @@ void SPI1_Init(SPI_Time_Div time_div, uint8_t CPOL, uint8_t CPHA, uint8_t data_s
     RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_AFIOEN;
 
     // Configurer les GPIOs : SCK (PA5), MISO (PA6), MOSI (PA7)	
-    initGpioX(GPIOA, 5, GPIO_MODE_OUTPUT_PP_50MHz);
-    initGpioX(GPIOA, 6, GPIO_MODE_INPUT_FLOATING);
-    initGpioX(GPIOA, 7, GPIO_MODE_OUTPUT_PP_50MHz);
+    initGpioX(GPIOA, 5, GPIO_MODE_AF_PP_50MHz);
+    initGpioX(GPIOA, 6, GPIO_MODE_INPUT_PULL_UP_DOWN);
+    GPIOA->ODR |= (1 << 6);  // Activer la pull-up sur PA6 (MISO)
+    initGpioX(GPIOA, 7, GPIO_MODE_AF_PP_50MHz);
 
     // Configurer SPI1
     SPI1->CR1 = 0;
@@ -19,8 +20,8 @@ void SPI1_Init(SPI_Time_Div time_div, uint8_t CPOL, uint8_t CPHA, uint8_t data_s
     SPI1->CR1 |= (1 << 9); //SSM
     SPI1->CR1 |= (1 << 8); //SSI
     
-    SPI1->CR2 = 0;
-    SPI1->CR2 |= (1 << 2);//SSOE
+    // SPI1->CR2 = 0;
+    // SPI1->CR2 |= (1 << 2);//SSOE
 
     SPI1->CR1 |= (1 << 6);//SPI enable
 }
@@ -31,9 +32,10 @@ void SPI2_Init(SPI_Time_Div time_div, uint8_t CPOL, uint8_t CPHA, uint8_t data_s
     RCC->APB2ENR |= RCC_APB2ENR_IOPBEN | RCC_APB2ENR_AFIOEN;
 
     // Configurer les GPIOs : SCK (PB13), MISO (PB14), MOSI (PB15)
-    initGpioX(GPIOB, 13, GPIO_MODE_OUTPUT_PP_50MHz);
-    initGpioX(GPIOB, 14, GPIO_MODE_INPUT_FLOATING);
-    initGpioX(GPIOB, 15, GPIO_MODE_OUTPUT_PP_50MHz);
+    initGpioX(GPIOB, 13, GPIO_MODE_AF_PP_50MHz);
+    initGpioX(GPIOB, 14, GPIO_MODE_INPUT_PULL_UP_DOWN);
+    GPIOB->ODR |= (1 << 14);  // Activer la pull-up sur PB14 (MISO)
+    initGpioX(GPIOB, 15, GPIO_MODE_AF_PP_50MHz);
 
     // Configurer SPI2
     SPI2->CR1 = SPI_MASTER_MODE | (time_div << 3) | (CPOL << 1) | (CPHA << 0);
