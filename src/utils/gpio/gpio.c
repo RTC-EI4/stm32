@@ -1,6 +1,6 @@
 #include "stm32f10x.h"
 
-#include "../include/gpio.h"
+#include "gpio.h"
 
 void initGpioX(GPIO_TypeDef* gpioX, uint8_t bitIndex, uint8_t mode) {
     // Check pin number
@@ -21,4 +21,20 @@ void initGpioX(GPIO_TypeDef* gpioX, uint8_t bitIndex, uint8_t mode) {
 
         gpioX->CRH = (gpioX->CRH & ~mask) | value;
     }
+}
+
+void delay_ms(int ms) {
+    int i;
+    for(i = 0; i < ms * 1000; i++)
+        __NOP();
+}
+void delay_us(int us) {
+    int i;
+    for(i = 0; i < us; i++)
+        __NOP();
+}
+void delay_s(int s) {
+    int i;
+    for(i = 0; i < s * 1000000; i++)
+        __NOP();
 }

@@ -30,4 +30,9 @@
 
 void initGpioX(GPIO_TypeDef* gpioX, uint8_t bitIndex, uint8_t quartet);
 
+//==================Temporisation==================
+void delay_ms(int ms);
+void delay_us(int us);
+void delay_s(int s);
+
 #endif
