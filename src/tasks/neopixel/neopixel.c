@@ -26,9 +26,6 @@ uint32_t notificationValue = 0;
 */
 
 void task_Neopixel(void* params_p) {
-    // Pre-fill the colorsNeo array with all black
-    for(uint8_t i = 0; i < 24; i++) colorsNeo[i] = NEOPIXEL_COLOR_GREEN;
-
     // Init resources
     initTimer2_neo(); // Init the timer 2 for the neopixel
     initDMA1_neo(); // Init the DMA 1 for the neopixel
@@ -76,7 +73,7 @@ void task_Neopixel(void* params_p) {
             portMAX_DELAY /* Block indefinitely. */
         );
 
-        for(uint8_t i = 0; i < 24; i++) colorsNeo[i] = NEOPIXEL_COLOR_BLACK; // Set the color to black
+        for(uint8_t i = 0; i < 24; i++) colorsNeo[i] = NEOPIXEL_COLOR_WHITE; // Set the color to black
 
         // // Read the MSB of the notification value, if 1 use set color mode, if 0 use clear color mode
         // // Read the LSB of the notification value, it uses the NeopixelColor enum as value, store it in the colorsNeo array

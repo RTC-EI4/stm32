@@ -4,7 +4,9 @@
         "freertos.h": "c",
         "button_task.h": "c",
         "buttons_task.h": "c",
-        "stm32f10x.h": "c"
+        "stm32f10x.h": "c",
+        "task.h": "c",
+        "gpio.h": "c"
     },
     "C_Cpp.default.compilerPath": "C:/ProgramData/mingw64/mingw64/bin/g++.exe"
 }

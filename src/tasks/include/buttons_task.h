@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-void task_Buttons(void *pvParameters);
+void task_Buttons(void *params_p);
 
 void buttonPressedSubroutine(void);
 
